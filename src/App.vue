@@ -1,50 +1,72 @@
 <template lang="pug">
-  div
-    h1 SLGR - Sleep Graph
+  .container
+    .page-header
+      h1 睡眠どうでしょう
+        br
+        small 〜 超簡単睡眠グラフ 〜
     .usage
-      h3 使い方
-      ol
-        li 睡眠時間を記録した文字列をテキストボックスに貼り付けます。
-        li グラフ表示ボタンを押します。
-      
-      h4 睡眠時間の記録方法
-      div 適当なメモ帳アプリなどに記録してください。
-      div 1日の睡眠時間は以下のように記録します。
-      .sample 20191210 2230-0720
-      div この例の場合は2019/12/10の22:30に寝て、翌朝07:20に起きた という意味になります。
-      br
-      div 何度も寝たり起きたりした場合は、その分だけ時間帯を書いてください。
-      .sample 20191210 2010-0015 0130-0720
-      div この例の場合は2019/12/10の20:10に寝て、夜中の00:15に起き、01:30にまた寝て、翌朝07:20に起きた という意味になります。
-      br
-      div 日付は8桁(20191210)または4桁(1210)のように書くことができます。8桁で書いた場合、それ以降は同じ年とみなされます。
-      div まずは「サンプルデータ表示」ボタンを押してみてください。
-    .form
-      textarea(ref="dataInput")
-      br
-      button(@click="process()") 入力データをグラフ化
-      button(@click="showSample()") サンプルデータ表示
-    pre.chart(ref="chart") (ここにグラフが表示されます)
+      b-button(v-b-toggle.usage-collapse) ？
+      b-collapse#usage-collapse
+        b-card
+          h4(v-b-toggle.usage-collapse-what) このサービスは何？
+          b-collapse.usage-inner#usage-collapse-what 睡眠時間を記録したテキストを貼り付けると、グラフが表示されるサービスです。
+            div まずは「サンプルデータ表示」ボタンを押してみてください。
+            button.btn.btn-secondary.btn-sm(@click="showSample()") サンプルデータ表示
+            div 黒い棒の部分が寝ていた時間帯です。右側にある数字と黒い棒はその日の合計睡眠時間を表しています。
+          h4(v-b-toggle.usage-collapse-howto) 使い方
+          b-collapse.usage-inner#usage-collapse-howto
+            ol
+              li 睡眠時間を記録した文字列をテキストボックスに貼り付けます。
+              li グラフ表示ボタンを押してください。グラフが表示されます。
+              li 先生やお医者さんなどに見せ、生活リズムの改善に役立てましょう。
+          h4(v-b-toggle.usage-collapse-record) 睡眠時間の記録方法
+          b-collapse.usage-inner#usage-collapse-record
+            div 普段よく使っているメモ帳アプリなど、一番簡単に文章を書くことができるものに記録します。
+            div 1日の睡眠時間は以下のように記録します。
+            .sample 0522 2130-0720
+            div この例の場合は5/22の21:30に寝て、翌朝07:20に起きた という意味になります。
+            div 何度も寝たり起きたりした場合は、その分だけ時間帯を書いてください。
+            .sample 0522 2010-0015 0130-0720
+            div この例の場合は5/22の20:10に寝て、夜中の00:15に起き、01:30にまた寝て、翌朝07:20に起きた という意味になります。
+          h4(v-b-toggle.usage-collapse-newyear) 年をまたぐ場合
+          b-collapse.usage-inner#usage-collapse-newyear
+            div 年をまたぐデータや昨年以前のデータの場合、日付は年を含めた8桁(20200522)で書いてください。8桁で書いた場合、それ以降は同じ年とみなされます。
+            .sample
+              | 20191230 0030-0900<br>
+              | 1231 0030-0900<br>
+              | 20200101 2300-0800<br>
+              | 0101 2200-0800
+          h4(v-b-toggle.usage-collapse-print) 印刷について
+          b-collapse.usage-inner#usage-collapse-print
+            div ブラウザの印刷機能を使うと、グラフ部分のみ印刷することができます。
+    .container
+      b-form-textarea.input(v-model="inputData" rows="15" placeholder="ここに睡眠記録を貼り付けてください。\n例)\n0521 2130-0630\n0522 2200-0700\n0523 1600-1730 2300-0530")
+      button.btn.btn-primary.show-graph-button(@click="process()") 入力データをグラフ化
+      pre.chart(ref="chart", :class="rendered() ? '' : 'dummy'") {{graphData}}
 </template>
 
 <script>
 
 import moment from "moment"
 
+const defaultGraphData = "(ここにグラフが表示されます)"
+
 export default {
   data () {
     return {
-      sampleText: "20191225 1845-2130 0055-0620\n1226 2200-0720\n1227 2245-0745\n1228 2250-0745\n1229 2330-0730\n1230 2245-0730\n20200101 2300-0550\n0102 1710-2020 0030-0800\n0103 1805-2330 0030-0720\n0104 2000-0400 0620-0830\n0105 1640-1930 0100-0840\n0106 0030-0940\n0107 2310-1000\n0108 2240-0530 0700-0755"
+      inputData: "",
+      sampleText: "0501 1845-2130 0055-0620\n0502 2200-0720\n0503 2245-0745\n0504 2250-0745\n0505 2330-0730\n0506 2245-0730\n0507 2300-0550\n0508 1710-2020 0030-0800\n0509 1805-2330 0030-0720\n0510 2000-0400 0620-0830\n0511 1640-1930 0100-0840\n0512 0030-0940\n0513 2310-1000\n0514 2240-0530 0700-0755",
+      graphData: defaultGraphData
     }
   },
   methods: {
     showSample () {
-      this.$refs.dataInput.value = this.sampleText
+      this.inputData = this.sampleText
       this.process()
     },
 
     process () {
-      let dataArr = this.parse(this.$refs.dataInput.value)
+      let dataArr = this.parse(this.inputData)
       this.renderGraph(dataArr)
     },
 
@@ -109,6 +131,10 @@ export default {
     },
     
     renderGraph (dataArr) {
+      if (dataArr.length === 0) {
+        this.graphData = defaultGraphData
+        return
+      }
       let preText = "               | 14  16  18  20  22  00  02  04  06  08  10  12 |\n"
       preText += "-------------------------------------------------------------------------------------------------\n"
 
@@ -168,33 +194,59 @@ export default {
         preText += s
       }
 
-      this.$refs.chart.innerHTML = preText
+      this.graphData = preText
+    },
+    rendered () {
+      return this.graphData.length > 15
     }
   }
 }
 </script>
 
 <style lang="sass">
-textarea
-  width: 500px
-  height: 300px
 
-pre
-  font-family: "Courier New", Consolas, monospace
+.page-header
+  background-color: #a260bf
+  color: white
+  padding: 20px
+  text-align: center
+  h1
+    font-size: 2rem
 
 .usage
   margin: 20px
+  h4
+    color: #8030FF
+    font-size: 1.3rem
+  .usage-inner
+    margin: 0 20px 20px
   .sample
     width: 300px
     margin: 20px
     border: 1px solid silver
     padding: 10px
 
-button
-  margin-right: 10px
+textarea
+  &::placeholder
+    color: #CCCCCC !important
+
+.show-graph-button
+  margin: 5px 0 20px
+
+pre.chart
+  font-family: "Courier New", Consolas, monospace
+  min-height: 300px
+  &.dummy
+    border: dotted 1px black
+    height: 300px
+    text-align: center
+    padding-top: 140px
+
+
+
 
 @media print
-  h1, .usage, .form, 
-    display: none
+  .page-header, .usage, .input, button
+    display: none !important
 
 </style>
