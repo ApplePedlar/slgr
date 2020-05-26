@@ -22,12 +22,21 @@
           h4(v-b-toggle.usage-collapse-record) 睡眠時間の記録方法
           b-collapse.usage-inner#usage-collapse-record
             div 普段よく使っているメモ帳アプリなど、一番簡単に文章を書くことができるものに記録します。
-            div 1日の睡眠時間は以下のように記録します。
+            div 1日の睡眠時間は [日付(4桁)] [寝た時間(4桁)]-[起きた時間(4桁)] のように書きます。
+            div 以下の例は5/22の21:30に寝て、翌朝07:20に起きた という意味になります。
             .sample 0522 2130-0720
-            div この例の場合は5/22の21:30に寝て、翌朝07:20に起きた という意味になります。
             div 何度も寝たり起きたりした場合は、その分だけ時間帯を書いてください。
+            div 以下の例は5/22の20:10に寝て、夜中の00:15に起き、01:30にまた寝て、翌朝07:20に起きた という意味になります。
             .sample 0522 2010-0015 0130-0720
-            div この例の場合は5/22の20:10に寝て、夜中の00:15に起き、01:30にまた寝て、翌朝07:20に起きた という意味になります。
+            div 行の後ろにコメントを書くことができます。特別な行事や体調が悪い場合に書くと良いでしょう。
+            .sample 0522 2000-0430 発熱38.4度
+          h4(v-b-toggle.usage-collapse-newyear) 13時をまたぐ睡眠について
+          b-collapse.usage-inner#usage-collapse-newyear
+            div グラフの両端は13時です。13時をまたぐ睡眠の場合は12:59までと13:00からに分けてください。(改善検討中..)
+            .sample
+              | 0522 0030-0700 1200-1259<br>
+              | 0523 1300-1330 2100-0600
+            div この例の場合は睡眠時間が5/23の0:30〜7:00、12:00〜13:30、21:00〜翌6:00 となります。
           h4(v-b-toggle.usage-collapse-newyear) 年をまたぐ場合
           b-collapse.usage-inner#usage-collapse-newyear
             div 年をまたぐデータや昨年以前のデータの場合、日付は年を含めた8桁(20200522)で書いてください。8桁で書いた場合、それ以降は同じ年とみなされます。
@@ -39,10 +48,16 @@
           h4(v-b-toggle.usage-collapse-print) 印刷について
           b-collapse.usage-inner#usage-collapse-print
             div ブラウザの印刷機能を使うと、グラフ部分のみ印刷することができます。
-    .container
-      b-form-textarea.input(v-model="inputData" rows="15" placeholder="ここに睡眠記録を貼り付けてください。\n例)\n0521 2130-0630\n0522 2200-0700\n0523 1600-1730 2300-0530")
-      button.btn.btn-primary.show-graph-button(@click="process()") 入力データをグラフ化
-      pre.chart(ref="chart", :class="rendered() ? '' : 'dummy'") {{graphData}}
+    b-form-textarea.input(v-model="inputData" rows="15" placeholder="ここに睡眠記録を貼り付けてください。\n例)\n0521 2130-0630\n0522 2200-0700\n0523 1600-1730 2300-0530")
+    button.btn.btn-primary.show-graph-button(@click="process()") 入力データをグラフ化
+    pre.chart(ref="chart", :class="rendered() ? '' : 'dummy'") {{graphData}}
+    .credit
+      | Created by&nbsp;
+      a(href="https://twitter.com/ApplePedlar") Naoya Hatayama (@ApplePedlar)
+      br
+      | src: &nbsp;
+      a(href="https://github.com/ApplePedlar/slgr" target="_new") https://github.com/ApplePedlar/slgr
+
 </template>
 
 <script>
@@ -55,9 +70,12 @@ export default {
   data () {
     return {
       inputData: "",
-      sampleText: "0501 1845-2130 0055-0620\n0502 2200-0720\n0503 2245-0745\n0504 2250-0745\n0505 2330-0730\n0506 2245-0730\n0507 2300-0550\n0508 1710-2020 0030-0800\n0509 1805-2330 0030-0720\n0510 2000-0400 0620-0830\n0511 1640-1930 0100-0840\n0512 0030-0940\n0513 2310-1000\n0514 2240-0530 0700-0755",
+      sampleText: "0501 1845-2130 0055-0620\n0502 2200-0720\n0503 2245-0745\n0504 2250-0745\n0505 2330-0730\n0506 2245-0730\n0507 2300-0550 旅行初日\n0508 1710-2020 0030-0800 旅行2日目\n0509 1805-2330 0030-0720\n0510 2000-0400 0620-0830 遠足\n0511 1640-1930 0100-0840\n0512 0030-0940 発熱37.8℃\n0513 2310-1000\n0514 2240-0530 0700-0755",
       graphData: defaultGraphData
     }
+  },
+  mounted () {
+    // this.showSample()
   },
   methods: {
     showSample () {
@@ -80,7 +98,8 @@ export default {
        *         "start": Date,
        *         "end": Date
        *       }
-       *     ]
+       *     ],
+       *     "comment": String
        *   }
        * ]
        */
@@ -95,6 +114,8 @@ export default {
       for (let i = 0; i < lines.length; i++) {
         let data = {}
         let line = lines[i]
+
+        // date
         let dateMatch = line.match(datePattern)
         if (!dateMatch) {
           continue
@@ -106,6 +127,7 @@ export default {
         data.date = moment(yyyyMMDD, "YYYYMMDD")
         data.times = []
 
+        // time
         let timeMatch = line.match(timePattern)
 
         if (!timeMatch) {
@@ -125,8 +147,15 @@ export default {
           data.times.push(time)
         }
 
+        // comment
+        let lastTimeStr = timeMatch[timeMatch.length - 1]
+        let commentIndex = line.lastIndexOf(lastTimeStr) + lastTimeStr.length
+        let comment = line.substring(commentIndex).trim()
+        data.comment = comment
+
         dataArr.push(data)
       }
+      console.log(dataArr)
       return dataArr
     },
     
@@ -138,6 +167,7 @@ export default {
       let preText = "               | 14  16  18  20  22  00  02  04  06  08  10  12 |\n"
       preText += "-------------------------------------------------------------------------------------------------\n"
 
+      let lines = new Array(dataArr.length)
       for (let i = 0; i < dataArr.length; i++) {
         let data = dataArr[i]
         let s = data.date.format("YYYY/MM/DD(ddd)") + "|"
@@ -190,11 +220,19 @@ export default {
           s += "■"
         }
 
-        s += "\n"
-        preText += s
+        lines[i] = s
       }
 
-      this.graphData = preText
+      let maxlen = lines.map(line => line.length).reduce((a, b) => Math.max(a, b))
+      for (let i = 0; i < lines.length; i++) {
+        let spaceCount = maxlen - lines[i].length + 1
+        for (let j = 0; j < spaceCount; j++) {
+          lines[i] += " "
+        }
+        lines[i] += "| " + dataArr[i].comment
+      }
+
+      this.graphData = preText + lines.join("\n")
     },
     rendered () {
       return this.graphData.length > 15
@@ -206,6 +244,7 @@ export default {
 <style lang="sass">
 
 .page-header
+  font-family: 'UD デジタル 教科書体 N-B', 'ヒラギノ丸ゴ ProN'
   background-color: #a260bf
   color: white
   padding: 20px
@@ -236,17 +275,24 @@ textarea
 pre.chart
   font-family: "Courier New", Consolas, monospace
   min-height: 300px
+  min-width: 60rem
   &.dummy
     border: dotted 1px black
+    min-width: 460px
     height: 300px
     text-align: center
     padding-top: 140px
 
+.credit
+  font-size: 0.8rem
+  margin: 1rem 0
 
 
 
 @media print
-  .page-header, .usage, .input, button
+  .page-header, .usage, .input, button, .credit
     display: none !important
+  pre.chart
+    border: none
 
 </style>
